@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Longhorn on Jetson - Practical Setup Guide</title>
+  <meta name="author" content="Samuel Fugarino" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-1: #f6f3ea;
+      --bg-2: #d7e6d2;
+      --bg-3: #b7d5c5;
+      --ink: #142118;
+      --muted: #30463a;
+      --brand: #1f7a4b;
+      --brand-2: #d95f02;
+      --card: rgba(255, 255, 255, 0.76);
+      --line: rgba(20, 33, 24, 0.15);
+      --shadow: 0 18px 45px rgba(20, 33, 24, 0.12);
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      color: var(--ink);
+      font-family: "Space Grotesk", sans-serif;
+      background:
+        radial-gradient(1000px 500px at 0% -10%, var(--bg-3) 0%, transparent 65%),
+        radial-gradient(800px 600px at 100% 0%, #eecda7 0%, transparent 70%),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2));
+      min-height: 100%;
+      line-height: 1.6;
+    }
+
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .blob {
+      position: absolute;
+      border-radius: 999px;
+      filter: blur(45px);
+      opacity: 0.32;
+      animation: drift 14s ease-in-out infinite alternate;
+    }
+
+    .blob.a {
+      width: 360px;
+      height: 360px;
+      background: #81b29a;
+      top: 10%;
+      left: -80px;
+    }
+
+    .blob.b {
+      width: 300px;
+      height: 300px;
+      background: #f2cc8f;
+      bottom: 6%;
+      right: -60px;
+      animation-delay: 1s;
+    }
+
+    @keyframes drift {
+      from { transform: translateY(0) translateX(0) scale(1); }
+      to { transform: translateY(-18px) translateX(10px) scale(1.08); }
+    }
+
+    .page {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 28px 18px 56px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero {
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      border-radius: calc(var(--radius) + 4px);
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(247, 250, 245, 0.72));
+      padding: 26px;
+      transform: translateY(10px);
+      opacity: 0;
+      animation: reveal 650ms ease forwards;
+    }
+
+    @keyframes reveal {
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .eyebrow {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.83rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--brand);
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 2.8vw, 2.8rem);
+      line-height: 1.12;
+      margin: 10px 0 12px;
+    }
+
+    .lead {
+      margin: 0;
+      max-width: 70ch;
+      color: var(--muted);
+    }
+
+    .grid {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+
+    .card {
+      grid-column: span 12;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      background: var(--card);
+      backdrop-filter: blur(6px);
+      padding: 18px;
+      animation: reveal 700ms ease both;
+    }
+
+    .card:nth-child(2) { animation-delay: 80ms; }
+    .card:nth-child(3) { animation-delay: 150ms; }
+    .card:nth-child(4) { animation-delay: 220ms; }
+
+    .span-8 { grid-column: span 12; }
+    .span-4 { grid-column: span 12; }
+
+    h2 {
+      font-size: clamp(1.1rem, 1.8vw, 1.55rem);
+      margin: 4px 0 10px;
+    }
+
+    h3 {
+      margin: 16px 0 8px;
+      font-size: 1rem;
+    }
+
+    p, li {
+      color: var(--muted);
+    }
+
+    ul, ol {
+      padding-left: 1.2rem;
+      margin: 0;
+    }
+
+    .k {
+      font-family: "IBM Plex Mono", monospace;
+      background: #f3f5ed;
+      border: 1px solid #d8dfd3;
+      border-radius: 7px;
+      padding: 1px 6px;
+      color: #1e3328;
+      white-space: nowrap;
+    }
+
+    pre {
+      margin: 10px 0 0;
+      background: #122018;
+      color: #d5f4df;
+      border-radius: 12px;
+      padding: 12px;
+      overflow-x: auto;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+    }
+
+    code {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.9rem;
+    }
+
+    .warn {
+      border-left: 4px solid var(--brand-2);
+      background: #fff4ea;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+
+    .tag {
+      display: inline-block;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.76rem;
+      border: 1px solid rgba(20, 33, 24, 0.2);
+      border-radius: 999px;
+      padding: 2px 8px;
+      margin-right: 6px;
+      margin-bottom: 6px;
+      color: #234233;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    footer {
+      margin-top: 22px;
+      font-size: 0.9rem;
+      color: #375344;
+      text-align: center;
+    }
+
+    @media (min-width: 900px) {
+      .span-8 { grid-column: span 8; }
+      .span-4 { grid-column: span 4; }
+      .hero {
+        padding: 34px;
+      }
+      .card {
+        padding: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true">
+    <div class="blob a"></div>
+    <div class="blob b"></div>
+  </div>
+
+  <main class="page">
+    <section class="hero">
+      <p class="eyebrow">Kubernetes Storage on ARM64</p>
+      <h1>What Longhorn Is, and How to Run It on Jetson Devices</h1>
+      <p>Author: Samuel Fugarino</p>
+      <p class="lead">
+        Longhorn is a cloud-native, distributed block storage system for Kubernetes. It gives you persistent volumes with replication,
+        snapshots, backups, and an easy web UI. On Jetson (ARM64), Longhorn can work well for edge clusters when iSCSI and kernel
+        prerequisites are configured correctly.
+      </p>
+    </section>
+
+    <section class="grid" aria-label="Longhorn guide sections">
+      <article class="card span-8">
+        <h2>What Longhorn Does</h2>
+        <p>
+          Longhorn creates and manages Kubernetes Persistent Volumes by running a lightweight storage engine on each node.
+          Each volume can be replicated across nodes for higher availability.
+        </p>
+        <h3>Core capabilities</h3>
+        <ul>
+          <li>Dynamic volume provisioning using Kubernetes StorageClass.</li>
+          <li>Replica-based high availability across multiple nodes.</li>
+          <li>Volume snapshots and recurring backup jobs.</li>
+          <li>Easy operational visibility through the Longhorn UI.</li>
+          <li>Good fit for edge and homelab clusters where local disks are common.</li>
+        </ul>
+
+        <h3>Why Jetson users pick it</h3>
+        <ul>
+          <li>No separate SAN required.</li>
+          <li>Runs directly in your Kubernetes cluster.</li>
+          <li>Works with mixed workloads (AI services, databases, telemetry pipelines).</li>
+        </ul>
+      </article>
+
+      <aside class="card span-4">
+        <h2>Jetson Prerequisites</h2>
+        <span class="tag">Ubuntu 22.04</span>
+        <span class="tag">ARM64</span>
+        <span class="tag">K3s or K8s</span>
+        <span class="tag">open-iscsi</span>
+
+        <ol>
+          <li>All Jetson nodes must have working Kubernetes networking.</li>
+          <li>The iSCSI stack must be installed and active.</li>
+          <li>The <span class="k">iscsi_tcp</span> kernel module must load successfully.</li>
+          <li>Each node needs a writable disk path for Longhorn data (for example <span class="k">/var/lib/longhorn</span>).</li>
+        </ol>
+
+        <div class="warn">
+          On some Jetson kernels, <span class="k">iscsi_tcp</span> is not built by default. Build and load it first.
+        </div>
+      </aside>
+
+      <article class="card span-12">
+        <h2>Step-by-Step Setup (Jetson)</h2>
+        <h3>1. Install host dependencies on every Jetson node</h3>
+        <pre><code>sudo apt update
+sudo apt install -y open-iscsi nfs-common
+sudo systemctl enable --now iscsid</code></pre>
+
+        <h3>2. Confirm iSCSI kernel support</h3>
+        <pre><code>sudo modprobe libiscsi
+sudo modprobe iscsi_tcp
+lsmod | grep -E "iscsi_tcp|libiscsi"</code></pre>
+
+        <p>If <span class="k">iscsi_tcp</span> is missing, compile and copy modules as described in your kernel module build notes.</p>
+        <p><a href="https://sfugarino.net/iscsi-tcp.html">iSCSI TCP Kernel Module Setup Guide</a></p>
+
+        <h3>3. Install Longhorn via Helm</h3>
+        <pre><code>kubectl create namespace longhorn-system
+helm repo add longhorn https://charts.longhorn.io
+helm repo update
+helm install longhorn longhorn/longhorn \
+  --namespace longhorn-system \
+  --set defaultSettings.defaultDataPath="/var/lib/longhorn"</code></pre>
+
+        <h3>4. Verify all Longhorn components are ready</h3>
+        <pre><code>kubectl -n longhorn-system get pods
+kubectl -n longhorn-system get daemonset
+kubectl get sc</code></pre>
+
+        <h3>5. Access the UI and test a volume</h3>
+        <pre><code>kubectl -n longhorn-system port-forward service/longhorn-frontend 8080:80</code></pre>
+        <p>Open <span class="k">http://127.0.0.1:8080</span>, then create a test PVC and attach it to a pod.</p>
+      </article>
+
+      <article class="card span-6">
+        <h2>Recommended Jetson Settings</h2>
+        <ul>
+          <li>Use at least 3 nodes for real replica-based availability.</li>
+          <li>Set Longhorn replica count to 2 or 3 depending on node count and storage budget.</li>
+          <li>Use SSD or NVMe where possible for better latency.</li>
+          <li>Keep node clocks in sync (NTP) for stable distributed operations.</li>
+          <li>Reserve CPU and memory for Longhorn system pods on smaller Jetson boards.</li>
+        </ul>
+      </article>
+
+      <article class="card span-6">
+        <h2>Common Problems on Jetson</h2>
+        <ul>
+          <li><strong>Pods stuck in Init:</strong> Usually missing iSCSI tooling or module.</li>
+          <li><strong>Volume attach fails:</strong> Check <span class="k">iscsid</span> status and node kernel logs.</li>
+          <li><strong>Replica scheduling failures:</strong> Not enough free disk or too few schedulable nodes.</li>
+          <li><strong>Performance is low:</strong> Reduce replica count for dev workloads and move data path to faster storage.</li>
+        </ul>
+
+        <h3>Useful checks</h3>
+        <pre><code>systemctl status iscsid
+kubectl -n longhorn-system logs deploy/longhorn-driver-deployer
+kubectl -n longhorn-system logs -l app=longhorn-manager --tail=200</code></pre>
+      </article>
+    </section>
+
+    <footer>
+      Practical note: Verify your Longhorn version supports your ARM64/Jetson environment before production rollout.
+    </footer>
+  </main>
+</body>
+</html>
